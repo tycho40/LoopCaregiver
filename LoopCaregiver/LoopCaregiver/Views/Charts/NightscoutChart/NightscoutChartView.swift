@@ -19,6 +19,7 @@ struct NightscoutChartScrollView: View {
     @State var scrollRequestSubject = PassthroughSubject<ScrollType, Never>()
     let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
     static let timelineLookbackIntervals = [1, 3, 6, 12, 24]
+    @AppStorage(UserDefaults.standard.timelineVisibleLookbackHoursKey) private var timelineVisibleLookbackHours = 6
     
     private let configuration = NightscoutChartConfiguration()
 
@@ -27,6 +28,8 @@ struct NightscoutChartScrollView: View {
     private let minScale: CGFloat = 0.10
     private let maxScale: CGFloat = 3.0
     @State private var currentScale: CGFloat = 1.0
+    
+    @Environment(\.scenePhase) private var scenePhase
     
     func glucoseGraphItems() -> [GraphItem] {
         return remoteDataSource.glucoseSamples.map({$0.graphItem(displayUnit: settings.glucoseDisplayUnits)})
@@ -61,7 +64,7 @@ struct NightscoutChartScrollView: View {
                         GeometryReader { chartGeometry in
                             Rectangle().fill(.clear).contentShape(Rectangle())
                                 .onTapGesture(count: 2) { tapLocation in
-                                    switch self.settings.timelineVisibleLookbackHours {
+                                    switch timelineVisibleLookbackHours {
                                     case 6:
                                         updateTimelineHours(1)
                                     default:
@@ -70,15 +73,12 @@ struct NightscoutChartScrollView: View {
                                     scrollRequestSubject.send(.contentPoint(tapLocation))
                                 }
                                 .onTapGesture(count: 1) { tapLocation in
-                                    //print("x pos: \(tapLocation.x)")
-                                    //let val = chartProxy.value(
-                                    //    atX: tapLocation.x, as: Date.self
-                                    //)
-                                    //print("Date: \(val)")
-                                }
-                                .onAppear {
-                                    scrollRequestSubject.send(.scrollViewCenter)
-                                    //zoomScrollViewProxy.scrollTrailing()
+                                    print("x pos: \(tapLocation.x)")
+//                                    if let (date, glucose) = chartProxy.value(at: tapLocation, as: (Date, Double).self) {
+//                                        print("Location: \(date), \(glucose)")
+//                                        let graphItem = getTappableGraphItem(date: date, value: glucose)
+//                                        print(graphItem)
+//                                    }
                                 }
                                 .onReceive(scrollRequestSubject) { scrollType in
                                     let lookbackHours = CGFloat(totalGraphHours - timelinePredictionHours)
@@ -105,18 +105,23 @@ struct NightscoutChartScrollView: View {
                             //.modifier(PinchToZoom(minScale: 0.10, maxScale: 3.0, scale: $currentScale))
                         }
                     }
-                    .padding(.init(top: 5, leading: 10, bottom: 0, trailing: 10)) //Top to prevent top Y label from clipping
-                    .onChange(of: settings.timelineVisibleLookbackHours) { newValue in
+                    //TODO: Prefer leading/trailing of 10.0
+                    //but that is causing graph centering
+                    //issues
+                    .padding(.init(top: 5, leading: 0, bottom: 0, trailing: 0)) //Top to prevent top Y label from clipping
+                    .onChange(of: timelineVisibleLookbackHours) { newValue in
                         //This is to catch updates to the picker
                         scrollRequestSubject.send(.scrollViewCenter)
                     }
-                    .onChange(of: remoteDataSource.glucoseSamples, perform: { newValue in
-                        zoomScrollViewProxy.scrollTrailing()
-                    })
                     .onAppear(perform: {
                         scrollRequestSubject.send(.scrollViewCenter)
                         zoomScrollViewProxy.scrollTrailing()
                     })
+                    .onChange(of: scenePhase) { newPhase in
+                        if newPhase == .active {
+                            zoomScrollViewProxy.scrollTrailing()
+                        }
+                    }
             }
         }
     }
@@ -194,22 +199,29 @@ struct NightscoutChartScrollView: View {
     }
     
     func updateTimelineHours(_ hours: Int) {
-        settings.timelineVisibleLookbackHours = hours
+        timelineVisibleLookbackHours = hours
     }
     
-    func getGraphItem(date: Date, value: Double) -> GraphItem? {
+    func getTappableGraphItem(date: Date, value: Double) -> GraphItem? {
         
-        //Get the cartesian distance between value/Date given and graphItem
-        //Find the closest one
-        //Return if within a certain number of points
+        let yAxisLength = chartYRange().upperBound - chartYRange().lowerBound
         
         func distanceCalcuator(graphItem: GraphItem, date: Date, value: Double) -> Double {
-            let dateHeightScaled = date.timeIntervalSince1970 / (chartYRange().upperBound - chartYRange().lowerBound)
-            let graphDateHeightScaled = graphItem.displayTime.timeIntervalSince1970 / (chartYRange().upperBound - chartYRange().lowerBound)
+            let dateHeightScaled = date.timeIntervalSince1970 / yAxisLength
+            let graphDateHeightScaled = graphItem.displayTime.timeIntervalSince1970 / yAxisLength
             return hypot(dateHeightScaled - graphDateHeightScaled, value - graphItem.value)
         }
         
-        guard let closest = allGraphItems().sorted(by: { item1, item2 in
+        let tappableGraphItems = allGraphItems().filter({ graphItem in
+            switch graphItem.type {
+            case .bolus, .carb:
+                return true
+            default:
+                return false
+            }
+        })
+        
+        guard let closest = tappableGraphItems.sorted(by: { item1, item2 in
             distanceCalcuator(graphItem: item1, date: date, value: value) < distanceCalcuator(graphItem: item2, date: date, value: value)
         }).first else {
             return nil
@@ -246,7 +258,7 @@ struct NightscoutChartScrollView: View {
             return 0
         }
         
-        return min(6, settings.timelineVisibleLookbackHours)
+        return min(6, timelineVisibleLookbackHours)
     }
     
     var totalGraphHours: Int {
@@ -254,7 +266,7 @@ struct NightscoutChartScrollView: View {
     }
     
     var visibleFrameHours: Int {
-        return settings.timelineVisibleLookbackHours + timelinePredictionHours
+        return timelineVisibleLookbackHours + timelinePredictionHours
     }
     
     func chartYRange() -> ClosedRange<Double> {

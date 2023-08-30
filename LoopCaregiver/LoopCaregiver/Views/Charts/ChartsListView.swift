@@ -64,7 +64,15 @@ struct ChartsListView: View {
                  */
             }
             TimelineWrapperView(title:"Timeline", settings: settings) {
-                NightscoutChartScrollView(settings: looperService.settings, remoteDataSource: remoteDataSource)
+                HStack {
+                    //Using .padding causes the chart overlay GeometryReader to
+                    //have an offset that is the padding amount.
+                    //Using a custom "padding" solution here with an HStack to avoid this.
+                    Spacer(minLength: 10.0)
+                    NightscoutChartScrollView(settings: looperService.settings, remoteDataSource: remoteDataSource)
+                    Spacer(minLength: 10.0)
+                }
+
             }
         }
     }
@@ -146,6 +154,7 @@ struct TimelineWrapperView<ChartContent:View>: View {
 
     let title: String
     @ObservedObject var settings: CaregiverSettings
+    @AppStorage(UserDefaults.standard.timelineVisibleLookbackHoursKey) private var timelineVisibleLookbackHours = 6
     let lookbackIntervals = NightscoutChartScrollView.timelineLookbackIntervals
     let chartContent:ChartContent
     
@@ -163,7 +172,7 @@ struct TimelineWrapperView<ChartContent:View>: View {
                     .font(.subheadline)
                     .padding([.leading], 10.0)
                 Spacer()
-                Picker("Range", selection: $settings.timelineVisibleLookbackHours) {
+                Picker("Range", selection: $timelineVisibleLookbackHours) {
                     ForEach(lookbackIntervals, id: \.self) { period in
                         Text("\(period)h").tag(period)
                     }
