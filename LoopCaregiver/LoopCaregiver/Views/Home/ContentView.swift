@@ -13,10 +13,12 @@ import LoopKit
 struct ContentView: View {
     
     @ObservedObject var accountService: AccountServiceManager
-    let settings: CaregiverSettings = CaregiverSettings()
+    let settings: CaregiverSettings
     
     init(){
-        self.accountService = AccountServiceManager(accountService: CoreDataAccountService(inMemory: false))
+        let composer = ServiceComposer()
+        self.settings = composer.settings
+        self.accountService = composer.accountServiceManager
     }
     
     var body: some View {
@@ -86,7 +88,17 @@ struct HomeView: View {
             BolusInputView(looperService: looperService, remoteDataSource: looperService.remoteDataSource, showSheetView: $showBolusView)
         }
         .sheet(isPresented: $showOverrideView) {
-            OverrideView(looperService: looperService, showSheetView: $showOverrideView)
+            NavigationStack {
+                OverrideView(delegate: looperService.remoteDataSource) {
+                    showOverrideView = false
+                }
+                .navigationBarTitle(Text("Custom Preset"), displayMode: .inline)
+                .navigationBarItems(leading: Button(action: {
+                    showOverrideView = false
+                }) {
+                    Text("Cancel")
+                })
+            }
         }
         .sheet(isPresented: $showSettingsView) {
             SettingsView(looperService: looperService, accountService: accountService, settings: looperService.settings, showSheetView: $showSettingsView)
@@ -96,7 +108,9 @@ struct HomeView: View {
     func disclaimerOverlay() -> some View {
         return ZStack {
             Color.cellBackgroundColor
-            DisclaimerView()
+            DisclaimerView(disclaimerAgreedTo: {
+                settings.disclaimerAcceptedDate = Date()
+            })
         }
     }
     
