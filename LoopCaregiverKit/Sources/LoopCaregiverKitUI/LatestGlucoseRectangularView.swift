@@ -60,7 +60,7 @@ public struct LatestGlucoseRectangularView: View {
             ForEach(viewModel.recentGlucoseValues.filter({ $0.date > chartXRange().lowerBound }), id: \.date) {
                 PointMark(
                     x: .value("Time", $0.date),
-                    y: .value("Reading", $0.quantity.doubleValue(for: .milligramsPerDeciliter))
+                    y: .value("Reading", $0.quantity.doubleValue(for: viewModel.glucoseDisplayUnits))
                 )
                 .symbol(
                     FilledCircle()
@@ -73,7 +73,7 @@ public struct LatestGlucoseRectangularView: View {
     
     func chartXRange() -> ClosedRange<Date> {
         let maxXDate = Date()
-        let minXDate = Date().addingTimeInterval(-60 * 60 * 1)
+        let minXDate = Date().addingTimeInterval(-60 * 60 * 2)
         return minXDate...maxXDate
     }
 }
