@@ -21,7 +21,7 @@ public struct NightscoutChartViewModel {
     let graphTag = 1000
     let showChartXAxis: Bool
     let showChartYAxis: Bool
-        
+    
     func allGraphItems() -> [GraphItem] {
         return remoteCommandGraphItems() + carbEntryGraphItems() + bolusGraphItems() + predictionGraphItems() + glucoseGraphItems()
     }
@@ -42,7 +42,7 @@ public struct NightscoutChartViewModel {
             .map({ $0.graphItem(egvValues: glucoseGraphItems(), displayUnit: treatmentData.glucoseDisplayUnits) })
             .filter({ $0.displayTime >= Date().addingTimeInterval(-Double(totalLookbackhours) * 60.0 * 60.0 ) })
     }
-
+    
     func carbEntryGraphItems() -> [GraphItem] {
         return treatmentData.carbEntries
             .map({ $0.graphItem(egvValues: glucoseGraphItems(), displayUnit: treatmentData.glucoseDisplayUnits) })
@@ -64,16 +64,16 @@ public struct NightscoutChartViewModel {
     func chartYRange() -> ClosedRange<Double> {
         return chartYBase()...chartYTop()
     }
-
+    
     func chartYBase() -> Double {
         return HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 0).doubleValue(for: treatmentData.glucoseDisplayUnits)
     }
-
+    
     func chartYTop() -> Double {
         guard let maxGraphYValue = maxValueOfAllGraphItems() else {
             return HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 400).doubleValue(for: treatmentData.glucoseDisplayUnits)
         }
-
+        
         if maxGraphYValue >= 300 {
             return HKQuantity(unit: .milligramsPerDeciliter, doubleValue: 400).doubleValue(for: treatmentData.glucoseDisplayUnits)
         } else if maxGraphYValue >= 200 {
@@ -83,13 +83,31 @@ public struct NightscoutChartViewModel {
         }
     }
     
+    func minValueOfAllGraphItems() -> Double? {
+        let minBG = self.glucoseGraphItems().min(by: { $0.value < $1.value })?.quantity.doubleValue(for: .milligramsPerDeciliter)
+        var minPredictedY: Double?
+        if timelinePredictionEnabled {
+            minPredictedY = self.predictionGraphItems().min(by: { $0.value < $1.value })?.quantity.doubleValue(for: .milligramsPerDeciliter)
+        }
+        
+        if let minBG, let minPredictedY {
+            return min(minBG, minPredictedY)
+        } else if let minBG {
+            return minBG
+        } else if let minPredictedY {
+            return minPredictedY
+        } else {
+            return nil
+        }
+    }
+    
     func maxValueOfAllGraphItems() -> Double? {
         let maxBGY = self.glucoseGraphItems().max(by: { $0.value < $1.value })?.quantity.doubleValue(for: .milligramsPerDeciliter)
         var maxPredictedY: Double?
         if timelinePredictionEnabled {
             maxPredictedY = self.predictionGraphItems().max(by: { $0.value < $1.value })?.quantity.doubleValue(for: .milligramsPerDeciliter)
         }
-
+        
         if let maxBGY, let maxPredictedY {
             return max(maxBGY, maxPredictedY)
         } else if let maxBGY {
@@ -140,7 +158,7 @@ public struct NightscoutChartViewModel {
         guard timelinePredictionEnabled else {
             return 0
         }
-
+        
         return min(6, timelineVisibleLookbackHours)
     }
     
@@ -187,6 +205,7 @@ struct NightscoutChartView: View {
     let viewModel: NightscoutChartViewModel
     
     var body: some View {
+        ZStack {
             Chart {
                 ForEach(viewModel.getTargetDateRangesAndValues(), id: \.range) { dateRangeAndValue in
                     RectangleMark(
@@ -296,5 +315,20 @@ struct NightscoutChartView: View {
                 } else {
                 }
             }
+//            VStack {
+//                Spacer()
+//                HStack {
+//                    Spacer()
+//                    Text("\(timelineCount)")
+//                        .font(.footnote)
+//                        .opacity(0.1)
+//                }
+//            }
+        }
+    }
+    
+    var timelineCount: Int {
+        let timelineRefreshKey = "time-line-refresh"
+        return UserDefaults.standard.value(forKey: timelineRefreshKey) as? Int ?? 0
     }
 }
