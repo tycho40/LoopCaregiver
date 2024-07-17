@@ -51,6 +51,11 @@ public struct TimelineProviderShared {
                 let futureValue = value.valueWithDate(nowDate.addingTimeInterval(60 * TimeInterval(index)))
                 entries.append(.success(futureValue))
             }
+            
+            // The last entry is an error entry as we don't want to show any older glucose info at that point.
+            let errorDate = nowDate.addingTimeInterval(60.0 * TimeInterval(indexCount))
+            let glucoseError = GlucoseTimeLineEntryError(error: TimelineProviderError.missingGlucose, date: errorDate, looper: looper)
+            entries.append(.failure(glucoseError))
             return Timeline(entries: entries, policy: .after(nextRequestDate))
         } catch {
             return Timeline.createTimeline(error: error, looper: looper)
@@ -85,7 +90,10 @@ public struct TimelineProviderShared {
             carbEntries: remoteServiceManager.carbEntries,
             recentCommands: remoteServiceManager.recentCommands,
             currentProfile: remoteServiceManager.currentProfile,
-            overrideAndStatus: remoteServiceManager.activeOverrideAndStatus()
+            overrideAndStatus: remoteServiceManager.activeOverrideAndStatus(),
+            currentIOB: remoteServiceManager.currentIOB,
+            currentCOB: remoteServiceManager.currentCOB,
+            recommendedBolus: remoteServiceManager.recommendedBolus
         )
         
         return GlucoseTimelineValue(
@@ -109,7 +117,10 @@ public struct TimelineProviderShared {
                     carbEntries: [],
                     recentCommands: [],
                     currentProfile: nil,
-                    overrideAndStatus: nil
+                    overrideAndStatus: nil,
+                    currentIOB: nil,
+                    currentCOB: nil,
+                    recommendedBolus: nil
                 )
                 return GlucoseTimeLineEntry(
                     looper: looper,

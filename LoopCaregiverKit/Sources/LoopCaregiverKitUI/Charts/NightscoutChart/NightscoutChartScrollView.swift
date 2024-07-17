@@ -98,7 +98,9 @@ public struct NightscoutChartScrollView: View {
                     }
                     .onAppear(perform: {
                         scrollRequestSubject.send(.scrollViewCenter)
-                        zoomScrollViewProxy.scrollTrailing()
+                        DispatchQueue.main.async { // On the watch only, it won't scroll in onAppear without introducing a delay
+                            zoomScrollViewProxy.scrollTrailing()
+                        }
                     })
                     .onChange(of: scenePhase) { newPhase in
                         if newPhase == .active {
@@ -123,7 +125,10 @@ public struct NightscoutChartScrollView: View {
             carbEntries: remoteDataSource.carbEntries,
             recentCommands: remoteDataSource.recentCommands,
             currentProfile: remoteDataSource.currentProfile,
-            overrideAndStatus: remoteDataSource.activeOverrideAndStatus()
+            overrideAndStatus: remoteDataSource.activeOverrideAndStatus(),
+            currentIOB: remoteDataSource.currentIOB,
+            currentCOB: remoteDataSource.currentCOB,
+            recommendedBolus: remoteDataSource.recommendedBolus
         )
     }
     
