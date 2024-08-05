@@ -17,6 +17,7 @@ public struct NightscoutChartScrollView: View {
     @ObservedObject var remoteDataSource: RemoteDataServiceManager
     @State private var scrollRequestSubject = PassthroughSubject<ScrollType, Never>()
     let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+    let compactMode: Bool
     public static let timelineLookbackIntervals = [1, 3, 6, 12, 24]
     @AppStorage(UserDefaults.standard.timelineVisibleLookbackHoursKey)
     private var timelineVisibleLookbackHours = NightscoutChartScrollView.defaultTimelineVisibleLookbackHours
@@ -32,9 +33,10 @@ public struct NightscoutChartScrollView: View {
     @Environment(\.scenePhase)
     private var scenePhase
     
-    public init(settings: CaregiverSettings, remoteDataSource: RemoteDataServiceManager) {
+    public init(settings: CaregiverSettings, remoteDataSource: RemoteDataServiceManager, compactMode: Bool) {
         self.settings = settings
         self.remoteDataSource = remoteDataSource
+        self.compactMode = compactMode
     }
 
     public var body: some View {
@@ -142,6 +144,7 @@ public struct NightscoutChartScrollView: View {
             timelinePredictionEnabled: settings.timelinePredictionEnabled,
             totalLookbackhours: 24,
             timelineVisibleLookbackHours: timelineVisibleLookbackHours,
+            compactMode: compactMode,
             showChartXAxis: true,
             showChartYAxis: true
         )
@@ -230,10 +233,10 @@ public struct NightscoutChartScrollView: View {
             item1.displayTime < item2.displayTime
         }).filter({ distanceCalcuator(graphItem: $0, date: date, value: value) < 20 })
 
-        if sortedItems.count <= 5 {
+        if sortedItems.count <= 10 {
             return sortedItems
         } else {
-            return Array(sortedItems[0...4])
+            return Array(sortedItems[0...9])
         }
     }
 

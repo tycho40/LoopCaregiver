@@ -18,6 +18,7 @@ public struct NightscoutChartViewModel {
     let timelinePredictionEnabled: Bool
     let totalLookbackhours: Int
     var timelineVisibleLookbackHours: Int
+    let compactMode: Bool
     let graphTag = 1000
     let showChartXAxis: Bool
     let showChartYAxis: Bool
@@ -146,12 +147,12 @@ public struct NightscoutChartViewModel {
         return totalGraphHours / visibleFrameHours * maxVisibleXLabels
     }
     
-    var totalGraphHours: Int {
-        return totalLookbackhours + timelinePredictionHours
+    var maxVisibleXLabels: Int {
+        return compactMode ? 3 : 5
     }
     
-    var maxVisibleXLabels: Int {
-        return 5
+    var totalGraphHours: Int {
+        return totalLookbackhours + timelinePredictionHours
     }
     
     var timelinePredictionHours: Int {
@@ -205,7 +206,7 @@ struct NightscoutChartView: View {
     let viewModel: NightscoutChartViewModel
     
     var body: some View {
-        ZStack {
+        TimelineView(.everyMinute) { context in
             Chart {
                 ForEach(viewModel.getTargetDateRangesAndValues(), id: \.range) { dateRangeAndValue in
                     RectangleMark(
@@ -267,6 +268,11 @@ struct NightscoutChartView: View {
                         return TreatmentAnnotationView(graphItem: graphItem)
                     }
                 }
+                RuleMark(
+                    x: .value("Now", context.date)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5]))
+                .foregroundStyle(.primary)
             }
             // Make sure the domain values line up with what is in foregroundStyle above.
             .chartForegroundStyleScale(domain: ColorType.membersAsRange(), range: ColorType.allCases.map({ $0.color }), type: .none)
@@ -307,13 +313,12 @@ struct NightscoutChartView: View {
                 if viewModel.showChartXAxis {
                     AxisMarks(position: .bottom, values: AxisMarkValues.automatic(desiredCount: viewModel.totalAxisMarks, roundLowerBound: false, roundUpperBound: false)) { date in
                         if let date = date.as(Date.self) {
-                            AxisValueLabel(format: viewModel.xAxisLabelFormatStyle(for: date))
+                            AxisValueLabel(format: viewModel.xAxisLabelFormatStyle(for: date), collisionResolution: .truncate)
                         } else {
                             AxisValueLabel(format: viewModel.xAxisLabelFormatStyle(for: Date()))
                         }
                         AxisGridLine(centered: true)
                     }
-                } else {
                 }
             }
         }
