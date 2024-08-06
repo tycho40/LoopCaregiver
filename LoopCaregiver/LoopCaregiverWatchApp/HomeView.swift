@@ -17,6 +17,7 @@ struct HomeView: View {
     @ObservedObject var settings: CaregiverSettings
     @ObservedObject var looperService: LooperService
     @State private var dataUpdating = false
+    @State private var lastUpdate: Date?
     @Environment(\.scenePhase)
     var scenePhase
     
@@ -51,6 +52,8 @@ struct HomeView: View {
                                 } icon: {
                                     workoutImage(isActive: status.active)
                                         .renderingMode(.template)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
                                         .foregroundColor(.blue)
                                         .accessibilityLabel(Text("Workout"))
                                 }
@@ -95,7 +98,13 @@ struct HomeView: View {
             }
         }
         .onChange(of: scenePhase, { _, _ in
-            updateData()
+            if let lastUpdate {
+                if Date().timeIntervalSince(lastUpdate) > 60 * 5 {
+                    updateData()
+                }
+            } else {
+                updateData()
+            }
         })
     }
     
@@ -119,6 +128,7 @@ struct HomeView: View {
             reloadWidget()
             await MainActor.run {
                 dataUpdating = false
+                lastUpdate = Date()
             }
         }
     }
