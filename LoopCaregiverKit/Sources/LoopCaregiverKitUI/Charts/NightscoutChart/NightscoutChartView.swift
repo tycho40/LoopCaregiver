@@ -13,7 +13,7 @@ import LoopKit
 import NightscoutKit
 import SwiftUI
 
-public struct NightscoutChartViewModel {
+public struct NightscoutChartViewModel: Equatable {
     let treatmentData: CaregiverTreatmentData
     let timelinePredictionEnabled: Bool
     let totalLookbackhours: Int
@@ -213,6 +213,7 @@ struct NightscoutChartView: View {
     let viewModel: NightscoutChartViewModel
     
     var body: some View {
+        let _ = Self._printChanges()
         Chart {
             ForEach(viewModel.getTargetDateRangesAndValues(), id: \.range) { dateRangeAndValue in
                 RectangleMark(
